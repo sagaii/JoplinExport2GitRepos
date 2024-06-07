@@ -46,6 +46,23 @@ export class Settings {
         section: 'fileExport2GitSettings',
         public: true,
         label: 'Swap spaces for dashes in filename'
+      },
+
+      batchScriptFilePath: {
+        value: '',
+        type: SettingItemType.String,
+        subType: SettingItemSubType.FilePath,
+        section: 'fileExport2GitSettings',
+        public: true,
+        label: 'After Export and Execute Batch Script File Path'
+      },
+      batchScriptWorkspacePath: {
+        value: '',
+        type: SettingItemType.String,
+        subType: SettingItemSubType.DirectoryPath,
+        section: 'fileExport2GitSettings',
+        public: true,
+        label: 'Batch Script Workspace Path(empty will use the same as the export path)'
       }
     })
   }

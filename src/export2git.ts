@@ -1,5 +1,7 @@
 import joplin from 'api'
-import { exec } from 'child_process'
+
+const { promisify } = require('util');
+const exec = promisify(require('child_process').exec);
 
 //本地文件系统
 const fs = joplin.require('fs-extra')
@@ -39,9 +41,12 @@ export class Export2git {
       label: 'Export as MD and Commit to Git',
       iconName: 'fas fa-file-export',
       execute: async () => {
+        console.info('Export as MD and Commit to Git')
         await this.ExportAsMarkdown(msgDlghandle)
-
+        console.info('Commit to Git')
         await this.CommitToGit(msgDlghandle)
+        console.info('Execute Batch Script')
+        await this.ExecuteScript()
       }
     })
   }
@@ -275,4 +280,66 @@ export class Export2git {
     })
   }
   //------------------------------------------------------
+
+  private async  ExecuteScript(): Promise<void> {
+    
+    const batchScriptFilePath = await joplin.settings.value('batchScriptFilePath')
+    if (batchScriptFilePath === '') {
+      console.info('batchScriptFilePath is empty.')      
+      return
+    }
+
+    let batchScriptWorkspacePath = await joplin.settings.value('batchScriptWorkspacePath')
+    if (batchScriptWorkspacePath === '') {      
+      batchScriptWorkspacePath=await joplin.settings.value('fileExportPath')
+    }
+    if (batchScriptWorkspacePath === '') {      
+      batchScriptWorkspacePath=path.dirname(batchScriptFilePath)
+    }
+    console.info('batchScriptWorkspacePath',batchScriptWorkspacePath)      
+
+
+    return new Promise((resolve, reject) => {
+      // Determine the script file extension
+      const extension = path.extname(batchScriptFilePath).toLowerCase();
+  
+      // Determine the command to execute based on the file extension
+      let command = '';
+      switch (extension) {
+        case '.bat':
+          command = `cmd /c "${batchScriptFilePath}"`;
+          break;
+        case '.sh':
+          command = `sh "${batchScriptFilePath}"`;
+          break;
+        case '.ps1':
+          command = `powershell -ExecutionPolicy Bypass -File "${batchScriptFilePath}"`;
+          break;
+        default:
+          return reject(new Error('Unsupported script file type.'));
+      }
+  
+      // Determine the working directory
+      let workingDirectory = batchScriptWorkspacePath || path.dirname(batchScriptFilePath);
+  
+      // Check if the working directory exists
+      if (!fs.existsSync(workingDirectory)) {
+        return reject(new Error(`Working directory does not exist: ${workingDirectory}`));
+      }
+  
+      // Execute the script
+      exec(command, { cwd: workingDirectory }, (error, stdout, stderr) => {
+        if (error) {
+          return reject(new Error(`Error executing script: ${stderr}`));
+        }
+        console.log(stdout);
+        resolve();
+      });
+    });
+  }
+
+   //------------------------------------------------------
+
+
+
 }
