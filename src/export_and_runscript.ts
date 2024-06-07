@@ -1,7 +1,8 @@
 import joplin from 'api'
+import { ToolbarButtonLocation } from 'api/types'
 
-const { promisify } = require('util');
-const exec = promisify(require('child_process').exec);
+const { promisify } = require('util')
+const exec = promisify(require('child_process').exec)
 
 //本地文件系统
 const fs = joplin.require('fs-extra')
@@ -10,16 +11,17 @@ const { access, constants } = require('fs').promises
 
 //------------------------------------------------------
 
-export class Export2git {
+export namespace ExportAndRunScript {
   /**
    * 注册插件命令
    *
    * @returns 无返回值
    */
-  public async register () {
+  export async function register () {
+    
     const dialogs = joplin.views.dialogs
 
-    const msgDlghandle = await dialogs.create('export2gitDialog')
+    const msgDlghandle = await dialogs.create('exportAndRunScriptDialog')
     await dialogs.setHtml(
       msgDlghandle,
       '<p style="text-align: center">' +
@@ -42,17 +44,25 @@ export class Export2git {
       iconName: 'fas fa-file-export',
       execute: async () => {
         console.info('Export as MD and Commit to Git')
-        await this.ExportAsMarkdown(msgDlghandle)
+        await ExportAsMarkdown(msgDlghandle)
         console.info('Commit to Git')
-        await this.CommitToGit(msgDlghandle)
+        await CommitToGit(msgDlghandle)
         console.info('Execute Batch Script')
-        await this.ExecuteScript()
+        await ExecuteScript()
       }
     })
+
+     //添加操作按钮
+     await joplin.views.toolbarButtons.create(
+      'exportMd2Git',
+      'exportMd2Git',
+      ToolbarButtonLocation.EditorToolbar
+    )
+
   }
 
   //------------------------------------------------------
-  private async ExportAsMarkdown (handle) {
+  async function ExportAsMarkdown (handle) {
     const dialogs = joplin.views.dialogs
     const note = await joplin.workspace.selectedNote()
     if (note) {
@@ -135,7 +145,7 @@ export class Export2git {
   }
 
   //------------------------------------------------------
-  private async saveResourceFile (resourceId, attachmentFolder) {
+  async function saveResourceFile (resourceId, attachmentFolder) {
     try {
       // 获取资源的详细信息，包括 MIME 类型
       const resource = await joplin.data.get(['resources', resourceId], {
@@ -200,7 +210,7 @@ export class Export2git {
   }
 
   //------------------------------------------------------
-  private isGitRepository (folderPath: string): boolean {
+  function isGitRepository (folderPath: string): boolean {
     try {
       // Construct the path to the .git folder
       const gitFolderPath = path(folderPath, '.git')
@@ -216,13 +226,16 @@ export class Export2git {
   //------------------------------------------------------
   // 提交到git仓库
   //
-  private async CommitToGit (msgDlghandle) {
+  async function CommitToGit (msgDlghandle) {
     const dialogs = joplin.views.dialogs
 
     const localReposPath = await joplin.settings.value('fileExportPath')
 
     // Check if localReposPath exists
-    if (!fs.existsSync(localReposPath) && this.isGitRepository(localReposPath)) {
+    if (
+      !fs.existsSync(localReposPath) &&
+      this.isGitRepository(localReposPath)
+    ) {
       return
     }
     // Change directory to the local repository path
@@ -281,65 +294,67 @@ export class Export2git {
   }
   //------------------------------------------------------
 
-  private async  ExecuteScript(): Promise<void> {
-    
-    const batchScriptFilePath = await joplin.settings.value('batchScriptFilePath')
+  async function ExecuteScript (): Promise<void> {
+    const batchScriptFilePath = await joplin.settings.value(
+      'batchScriptFilePath'
+    )
     if (batchScriptFilePath === '') {
-      console.info('batchScriptFilePath is empty.')      
+      console.info('batchScriptFilePath is empty.')
       return
     }
 
-    let batchScriptWorkspacePath = await joplin.settings.value('batchScriptWorkspacePath')
-    if (batchScriptWorkspacePath === '') {      
-      batchScriptWorkspacePath=await joplin.settings.value('fileExportPath')
+    let batchScriptWorkspacePath = await joplin.settings.value(
+      'batchScriptWorkspacePath'
+    )
+    if (batchScriptWorkspacePath === '') {
+      batchScriptWorkspacePath = await joplin.settings.value('fileExportPath')
     }
-    if (batchScriptWorkspacePath === '') {      
-      batchScriptWorkspacePath=path.dirname(batchScriptFilePath)
+    if (batchScriptWorkspacePath === '') {
+      batchScriptWorkspacePath = path.dirname(batchScriptFilePath)
     }
-    console.info('batchScriptWorkspacePath',batchScriptWorkspacePath)      
-
+    console.info('batchScriptWorkspacePath', batchScriptWorkspacePath)
 
     return new Promise((resolve, reject) => {
       // Determine the script file extension
-      const extension = path.extname(batchScriptFilePath).toLowerCase();
-  
+      const extension = path.extname(batchScriptFilePath).toLowerCase()
+
       // Determine the command to execute based on the file extension
-      let command = '';
+      let command = ''
       switch (extension) {
         case '.bat':
-          command = `cmd /c "${batchScriptFilePath}"`;
-          break;
+          command = `cmd /c "${batchScriptFilePath}"`
+          break
         case '.sh':
-          command = `sh "${batchScriptFilePath}"`;
-          break;
+          command = `sh "${batchScriptFilePath}"`
+          break
         case '.ps1':
-          command = `powershell -ExecutionPolicy Bypass -File "${batchScriptFilePath}"`;
-          break;
+          command = `powershell -ExecutionPolicy Bypass -File "${batchScriptFilePath}"`
+          break
         default:
-          return reject(new Error('Unsupported script file type.'));
+          return reject(new Error('Unsupported script file type.'))
       }
-  
+
       // Determine the working directory
-      let workingDirectory = batchScriptWorkspacePath || path.dirname(batchScriptFilePath);
-  
+      let workingDirectory =
+        batchScriptWorkspacePath || path.dirname(batchScriptFilePath)
+
       // Check if the working directory exists
       if (!fs.existsSync(workingDirectory)) {
-        return reject(new Error(`Working directory does not exist: ${workingDirectory}`));
+        return reject(
+          new Error(`Working directory does not exist: ${workingDirectory}`)
+        )
       }
-  
+
       // Execute the script
       exec(command, { cwd: workingDirectory }, (error, stdout, stderr) => {
         if (error) {
-          return reject(new Error(`Error executing script: ${stderr}`));
+          return reject(new Error(`Error executing script: ${stderr}`))
         }
-        console.log(stdout);
-        resolve();
-      });
-    });
+        console.log(stdout)
+        resolve()
+      })
+    })
   }
 
-   //------------------------------------------------------
-
-
-
+  //------------------------------------------------------
 }

@@ -2,19 +2,12 @@ import joplin from 'api'
 import {
   SettingItem,
   SettingItemType,
-  SettingItemSubType,
-  ToolbarButtonLocation
+  SettingItemSubType 
 } from 'api/types'
 
-export class Settings {
-  public async register () {
-    //添加操作按钮
-    await joplin.views.toolbarButtons.create(
-      'exportMd2Git',
-      'exportMd2Git',
-      ToolbarButtonLocation.EditorToolbar
-    )
-
+export namespace  Settings {
+  export async function register () {
+  
     //设置菜单
     await joplin.settings.registerSection('fileExport2GitSettings', {
       label: 'File Export2Git Settings',
