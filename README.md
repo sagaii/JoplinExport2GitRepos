@@ -11,7 +11,7 @@ also add a new feature that auto execute git commit to git repository in the exp
 
 1. Download the latest release
 2. In Joplin go to Settings > Plugins > Install plugin from file
-3. Upload the com.joshthor.export.jpl file
+3. Upload the io.sagaii.export2git.jpl file
 4. Restart Joplin
 
 ## Usage
